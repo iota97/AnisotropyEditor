@@ -1,0 +1,37 @@
+#version 440
+
+layout (set = 1, binding = 0, rgba16f) uniform coherent image2D bufferA;
+layout (set = 1, binding = 1, rgba16f) uniform coherent image2D bufferB;
+
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(std140, binding = 0) uniform buf {
+    vec2 position;
+    vec2 scale;
+    vec2 dir;
+    float bufferFlag;
+    float methodFlag;
+    float frequency;
+    float angleOffset;
+} u;
+
+const float PI = 3.14159265359;
+
+void main()
+{
+    ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+    vec4 val = imageLoad(bufferB, uv);
+    vec3 new = imageLoad(bufferA, uv/2).xyz;
+
+    mat2 M = mat2(cos(u.angleOffset), -sin(u.angleOffset), sin(u.angleOffset), cos(u.angleOffset));
+    vec2 p_i = vec2(uv)/imageSize(bufferA).y;
+    vec2 d_i = M*vec2(-val.y, val.x);
+    vec2 p_j = vec2(uv + uv%2)/imageSize(bufferA).y;
+    vec2 d_j = M*vec2(-new.y, new.x);
+    float d_i_dot_d_j = dot(d_i, d_j);
+    float p_i_proj_j = dot(p_i - p_j, d_j);
+    float dist_j_space = 2*PI * u.frequency * p_i_proj_j + new.z;
+    float phi = d_i_dot_d_j < 0 ? -dist_j_space + PI : dist_j_space;
+
+    imageStore(bufferB, uv, vec4(val.w == 0 ? new.xy : val.xy, val.w < 0 ? val.z : phi, val.w));
+}

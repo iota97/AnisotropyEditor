@@ -1,0 +1,117 @@
+#version 440
+
+layout (set = 1, binding = 0, rgba16f) uniform coherent image2D bufferA;
+layout (set = 1, binding = 1, rgba16f) uniform coherent image2D bufferB;
+
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(std140, binding = 0) uniform buf {
+    vec2 position;
+    vec2 scale;
+    vec2 dir;
+    float bufferFlag;
+    float methodFlag;
+    float frequency;
+    float angleOffset;
+    float newPhaseMethod;
+} u;
+
+const float PI = 3.14159265359;
+
+mat2 dirToMat(vec2 dir) {
+    if (length(dir) == 0) {
+        return mat2(0);
+    }
+    dir = normalize(dir);
+    mat2 M = mat2(dir.x, dir.y, -dir.y, dir.x);
+    return M*mat2(1.0, 0.0, 0.0, 0.0001)*transpose(M);
+}
+
+vec2 mat2Dir(mat2 mat) {
+    vec3 sigma = vec3(mat[0][0], mat[1][1], mat[0][1]);
+    float lambda1 = 0.5*(length(vec2(sigma.x-sigma.y, 2*sigma.z))+sigma.x+sigma.y);
+    float lambda2 = (sigma.x*sigma.y - sigma.z*sigma.z)/lambda1;
+    return sigma.z == 0 && sigma.x <= sigma.y ? vec2(0, 1) : normalize(vec2(lambda1-sigma.y, sigma.z));
+}
+
+void main()
+{
+    ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 neighbor[2][8] = {
+        {
+            ivec2(-1, -1), ivec2(0, -1), ivec2(1, -1),
+            ivec2(-1, 0), ivec2(1, 0),
+            ivec2(-1, 1), ivec2(0, 1), ivec2(1, 1)
+        },{
+            ivec2(-1, -1), ivec2(1, 1),
+            ivec2(1, -1), ivec2(-1, 1),
+            ivec2(1, 0), ivec2(-1, 0),
+            ivec2(0, 1), ivec2(0, -1)
+        }
+    };
+
+    vec2 dir = vec2(0);
+    vec4 val = u.bufferFlag < 0.5 ? imageLoad(bufferA, uv) : imageLoad(bufferB, uv);
+    if (val.w == 0) {
+        if (u.methodFlag < 1.5) {
+            mat2 M = mat2(0);
+            for (int i = 0; i < 8; i++) {
+                vec4 data = u.bufferFlag < 0.5 ? imageLoad(bufferA, uv + neighbor[1][i]) : imageLoad(bufferB, uv + neighbor[1][i]);
+                M += dirToMat(data.xy);
+            }
+            M /= 8;
+            if (u.methodFlag > 0.5 || abs(M[0][0]-M[1][1])+abs(M[0][1]) > 0.15) {
+                dir = mat2Dir(M);
+            }
+        }
+
+        if (length(dir) == 0) {
+            for (int i = 0; i < 8; i++) {
+                uint j = u.methodFlag < 2.5 ? 1 : 0;
+                vec2 n = u.bufferFlag < 0.5 ? imageLoad(bufferA, uv + neighbor[j][i]).xy : imageLoad(bufferB, uv + neighbor[j][i]).xy;
+                dir += dot(dir, n) < 0 ? -n : n;
+            }
+            dir = normalize(dir);
+        }
+    } else {
+        dir = val.xy;
+    }
+
+    vec2 phase = vec2(0);
+    mat2 M = mat2(cos(u.angleOffset), -sin(u.angleOffset), sin(u.angleOffset), cos(u.angleOffset));
+    if (val.w >= 0) {
+        for (int i = 0; i < 8; i++) {
+            vec4 data = u.bufferFlag < 0.5 ? imageLoad(bufferA, uv + neighbor[1][i]) : imageLoad(bufferB, uv + neighbor[1][i]);
+            vec2 p_i = uv/float(imageSize(bufferA).y);
+            vec2 d_i = M*vec2(-dir.y, dir.x);
+            vec2 p_j = (uv + neighbor[1][i])/float(imageSize(bufferA).y);
+            vec2 d_j = M*vec2(-data.y, data.x);
+            float phase_j = data.z;
+
+            if (u.newPhaseMethod > 0.5) {
+                // Eq. 6 Stripe Pattern + Section 3.3
+                vec2 e_ji = p_i - p_j;
+                float d_i_dot_d_j = dot(d_i, d_j);
+                float dot_e_ji_Z_i = dot(e_ji, 2*PI * u.frequency * d_i);
+                float dot_e_ji_Z_j = dot(e_ji, 2*PI * u.frequency * d_j);
+                float dist = phase_j + 0.5*(dot_e_ji_Z_j + sign(d_i_dot_d_j) * dot_e_ji_Z_i);
+                float phi = d_i_dot_d_j < 0 ? -dist + PI : dist;
+                phase += vec2(cos(phi), sin(phi))*abs(d_i_dot_d_j);
+            } else {
+                float d_i_dot_d_j = dot(d_i, d_j);
+                float p_i_proj_j = dot(p_i - p_j, d_j);
+                float dist_j_space = 2*PI * u.frequency * p_i_proj_j + phase_j;
+                float phi = d_i_dot_d_j < 0 ? -dist_j_space + PI : dist_j_space;
+                phase += vec2(cos(phi), sin(phi))*abs(d_i_dot_d_j);
+            }
+        }
+    } else {
+        phase = vec2(0, 1);
+    }
+
+    if (u.bufferFlag < 0.5) {
+        imageStore(bufferB, uv, vec4(dir, atan(phase.y, phase.x), val.w));
+    } else {
+        imageStore(bufferA, uv, vec4(dir, atan(phase.y, phase.x), val.w));
+    }
+}

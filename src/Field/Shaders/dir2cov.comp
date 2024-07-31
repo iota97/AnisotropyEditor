@@ -1,0 +1,36 @@
+#version 440
+
+layout(std140, binding = 0) uniform buf {
+    float roughness;
+    float anisotropy;
+} u;
+
+layout (binding = 1, rgba16f) uniform coherent readonly image2D dirTexture;
+layout (binding = 2, rgba16f) uniform coherent writeonly image2D covTexture;
+
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+void main()
+{
+    vec4 img = imageLoad(dirTexture, ivec2(gl_GlobalInvocationID.xy));
+    vec2 dir = normalize(2.0*img.xy-1.0);
+    float anisotropy = u.anisotropy;
+    float roughness = u.roughness;
+
+    if (length(dir) < 0.01) {
+        dir = vec2(1, 0);
+        anisotropy = 0;
+    }
+
+    float at = max(roughness * (1.0 + anisotropy), 0.001);
+    float ab = max(roughness * (1.0 - anisotropy), 0.001);
+    float sigma2t = at*at*0.5;
+    float sigma2b = ab*ab*0.5;
+
+    dir = normalize(dir);
+    mat2 M = mat2(dir.x, dir.y, -dir.y, dir.x);
+    mat2 St = mat2(sigma2t, 0.0, 0.0, sigma2b);
+    mat2 S = M*St*transpose(M);
+
+    imageStore(covTexture, ivec2(gl_GlobalInvocationID.xy), vec4(S[0][0], S[1][1], S[0][1], 0.0f));
+}

@@ -1,0 +1,25 @@
+#version 440
+
+layout (set = 1, binding = 0, rgba16f) uniform coherent image2D bufferA;
+layout (set = 1, binding = 1, rgba16f) uniform coherent image2D bufferB;
+
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(std140, binding = 0) uniform buf {
+    vec2 position;
+    vec2 scale;
+    vec2 dir;
+    float bufferFlag;
+    float methodFlag;
+    float frequency;
+    float angleOffset;
+} u;
+
+const float PI = 3.14159265359;
+
+void main()
+{
+    vec3 dir = imageLoad(bufferA, ivec2(gl_GlobalInvocationID.xy)).xyz;
+    mat2 M = mat2(cos(u.angleOffset), sin(u.angleOffset), -sin(u.angleOffset), cos(u.angleOffset));
+    imageStore(bufferB, ivec2(gl_GlobalInvocationID.xy), vec4(isnan(dir.x) ? M*vec2(1.0, 0.0) : M*(vec2(1, -1)*dir.xy), dir.z/PI, 1)*0.5+0.5);
+}

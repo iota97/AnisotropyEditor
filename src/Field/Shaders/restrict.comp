@@ -1,0 +1,68 @@
+#version 440
+
+layout (set = 1, binding = 0, rgba16f) uniform coherent image2D bufferA;
+layout (set = 1, binding = 1, rgba16f) uniform coherent image2D bufferB;
+
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(std140, binding = 0) uniform buf {
+    vec2 position;
+    vec2 scale;
+    vec2 dir;
+    float bufferFlag;
+    float methodFlag;
+} u;
+
+mat2 dirToMat(vec2 dir) {
+    dir = normalize(dir);
+    mat2 M = mat2(dir.x, dir.y, -dir.y, dir.x);
+    return M*mat2(1.0, 0.0, 0.0, 0.0001)*transpose(M);
+}
+
+vec2 mat2Dir(mat2 mat) {
+    vec3 sigma = vec3(mat[0][0], mat[1][1], mat[0][1]);
+    float lambda1 = 0.5*(length(vec2(sigma.x-sigma.y, 2*sigma.z))+sigma.x+sigma.y);
+    float lambda2 = (sigma.x*sigma.y - sigma.z*sigma.z)/lambda1;
+    return sigma.z == 0 && sigma.x <= sigma.y ? vec2(0, 1) : normalize(vec2(lambda1-sigma.y, sigma.z));
+}
+
+void main()
+{
+    ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+    vec4 n;
+
+    if (u.methodFlag > 1.5) {
+        vec2 dir = vec2(0);
+        float s = 1;
+        n = imageLoad(bufferA, 2*uv+ivec2(0, 0));
+        if (abs(n.w) > 0) dir += dot(dir, n.xy) < 0 ? -n.xy : n.xy;
+        if (n.w < 0) s = -1;
+        n = imageLoad(bufferA, 2*uv+ivec2(0, 1));
+        if (abs(n.w) > 0) dir += dot(dir, n.xy) < 0 ? -n.xy : n.xy;
+        if (n.w < 0) s = -1;
+        n = imageLoad(bufferA, 2*uv+ivec2(1, 0));
+        if (abs(n.w) > 0) dir += dot(dir, n.xy) < 0 ? -n.xy : n.xy;
+        if (n.w < 0) s = -1;
+        n = imageLoad(bufferA, 2*uv+ivec2(1, 1));
+        if (abs(n.w) > 0) dir += dot(dir, n.xy) < 0 ? -n.xy : n.xy;
+        if (n.w < 0) s = -1;
+        imageStore(bufferB, uv, vec4(normalize(dir), 0, s*length(dir)));
+    } else {
+        mat2 M = mat2(0);
+        float cst = 0;
+        float s = 1;
+        n = imageLoad(bufferA, 2*uv+ivec2(0, 0));
+        if (abs(n.w) > 0) M += dirToMat(n.xy); cst += abs(n.w);
+        if (n.w < 0) s = -1;
+        n = imageLoad(bufferA, 2*uv+ivec2(0, 1));
+        if (abs(n.w) > 0) M += dirToMat(n.xy); cst += abs(n.w);
+        if (n.w < 0) s = -1;
+        n = imageLoad(bufferA, 2*uv+ivec2(1, 0));
+        if (abs(n.w) > 0) M += dirToMat(n.xy); cst += abs(n.w);
+        if (n.w < 0) s = -1;
+        n = imageLoad(bufferA, 2*uv+ivec2(1, 1));
+        if (abs(n.w) > 0) M += dirToMat(n.xy); cst += abs(n.w);
+        if (n.w < 0) s = -1;
+        imageStore(bufferB, uv, vec4(mat2Dir(M), 0, s*cst));
+    }
+}

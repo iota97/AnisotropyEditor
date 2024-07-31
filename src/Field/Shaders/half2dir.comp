@@ -1,0 +1,17 @@
+#version 440
+
+layout (binding = 1, rgba16f) uniform coherent image2D u_image;
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+const float M_PI = 3.14159265359;
+
+float colorToAngle(vec4 color) {
+    float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+    return (1.0-luma)*M_PI*0.5;
+}
+
+void main()
+{
+    float angle = colorToAngle(imageLoad(u_image, ivec2(gl_GlobalInvocationID.xy)));
+    imageStore(u_image, ivec2(gl_GlobalInvocationID.xy), vec4(cos(angle)*0.5+0.5, sin(angle)*0.5+0.5, 0.5, 1.0));
+}
