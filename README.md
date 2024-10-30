@@ -1,5 +1,5 @@
 # Tangent Field Editor
-This editor allows editing 2D tangent fields and rendering in real-time the anisotropic appearance defined by such fields. This project is the result of my internship in the team [MFX](https://mfx.loria.fr/) on the occasion of my master's thesis. The thesis is still WIP, I'll provide a link to it when it's finished.
+This editor allows editing 2D tangent fields and rendering in real-time the anisotropic appearance defined by such fields. This project is the result of my internship in the team [MFX](https://mfx.loria.fr/) on the occasion of my master's [thesis](https://drive.google.com/file/d/1iu_zLZyRdtY2Du09JKbdB2y5B_ygdd7k/view?usp=drive_link).
 
 ![preview of the user interface of the software](assets/preview.png)
 
