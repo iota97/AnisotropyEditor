@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cstddef>
 #include "stdint.h"
 
 class ObjLoader {
