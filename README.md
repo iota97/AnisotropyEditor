@@ -11,6 +11,11 @@ For further information refer to the [project page](https://xavierchermain.githu
 ## Usage
 For further information about the usage please refer to the help menu or alternatively, you can see the same information [here](assets/help.md).
 
+## Replicability
+This code has the Graphics replicability stamps.
+
+[![](https://www.replicabilitystamp.org/logo/Reproducibility-small.png)](http://www.replicabilitystamp.org#https-github-com-iota97-anisotropyeditor)
+
 ## Dependencies
 This project depends on Qt 6.7+ and the Vulkan SDK 1.3+, we also advise using Qt Creator for the building process, nevertheless, this is not strictly required.
 
@@ -28,7 +33,7 @@ Running `sudo pacman -S qtcreator make` on a fresh installation is sufficient.
 #### Ubuntu 24.04 LTS
 - Run `sudo apt install qtcreator clang libxcb-cursor0 libxcb-cursor-dev`.
 - Download Qt [online installer](https://www.qt.io/download-qt-installer-oss).
-- Change the installer permission to make it executable using `cmod +x qt-online-installer-linux-x64-4.8.1.run`.
+- Change the installer permission to make it executable using `chmod +x qt-online-installer-linux-x64-4.8.1.run`.
 - Run the installer using `./qt-online-installer-linux-x64-4.8.1.run`, during the installation process select "Qt6.x for desktop development".
 - Install the Vulkan SDK as specified [here](https://vulkan.lunarg.com/doc/view/latest/linux/getting_started_ubuntu.html). For Ubuntu 24.04 LTS you have to run `wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc; sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list; sudo apt update; sudo apt install vulkan-sdk`.
 
